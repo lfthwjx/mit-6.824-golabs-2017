@@ -37,19 +37,24 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 			TaskNumber:    i,
 			NumOtherPhase: n_other,
 		}
-		var worker string
-		select {
-		case w := <-registerChan:
-			worker = w
-		case w := <-workers:
-			worker = w
-		}
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
-			call(worker, "Worker.DoTask", task, nil)
-			workers <- worker
-		}(i)
+			success := false
+			for !success {
+				var worker string
+				select {
+				case w := <-registerChan:
+					worker = w
+				case w := <-workers:
+					worker = w
+				}
+				success = call(worker, "Worker.DoTask", task, nil)
+				if success {
+					workers <- worker
+				}
+			}
+		}()
 	}
 	wg.Wait()
 	// All ntasks tasks have to be scheduled on workers, and only once all of
