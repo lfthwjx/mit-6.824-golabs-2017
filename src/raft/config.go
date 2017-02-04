@@ -147,7 +147,7 @@ func (cfg *config) start1(i int) {
 			err_msg := ""
 			if m.UseSnapshot {
 				// ignore the snapshot
-			} else if v, ok := (m.Command).(int); ok {
+			} else if v, ok := (m.Command).(int); ok || m.Command == nil {
 				cfg.mu.Lock()
 				for j := 0; j < len(cfg.logs); j++ {
 					if old, oldok := cfg.logs[j][m.Index]; oldok && old != v {
@@ -161,7 +161,7 @@ func (cfg *config) start1(i int) {
 				cfg.mu.Unlock()
 
 				if m.Index > 1 && prevok == false {
-					err_msg = fmt.Sprintf("server %v apply out of order %v", i, m.Index)
+					err_msg = fmt.Sprintf("server %v apply out of order %v, %+v", i, m.Index, cfg.logs[i])
 				}
 			} else {
 				err_msg = fmt.Sprintf("committed command %v is not an int", m.Command)
@@ -408,6 +408,7 @@ func (cfg *config) one(cmd int, expectedServers int) int {
 			t1 := time.Now()
 			for time.Since(t1).Seconds() < 2 {
 				nd, cmd1 := cfg.nCommitted(index)
+				//log.Printf("%v,%v=cfg.nCommitted(%v)", nd, cmd1, index)
 				if nd > 0 && nd >= expectedServers {
 					// committed
 					if cmd2, ok := cmd1.(int); ok && cmd2 == cmd {
@@ -420,6 +421,7 @@ func (cfg *config) one(cmd int, expectedServers int) int {
 		} else {
 			time.Sleep(50 * time.Millisecond)
 		}
+		//log.Printf("another round========")
 	}
 	cfg.t.Fatalf("one(%v) failed to reach agreement", cmd)
 	return -1
